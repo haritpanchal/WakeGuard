@@ -37,6 +37,7 @@ class AlarmSettings(context: Context) {
         preferences.edit()
             .putLong(KEY_CHAIN_START, System.currentTimeMillis())
             .putInt(KEY_CHAIN_RINGS, 1)
+            .putInt(KEY_CHAIN_STEPS, 0)
             .commit()
     }
 
@@ -45,8 +46,30 @@ class AlarmSettings(context: Context) {
     }
 
     fun clearChain() {
-        preferences.edit().remove(KEY_CHAIN_START).remove(KEY_CHAIN_RINGS).commit()
+        preferences.edit()
+            .remove(KEY_CHAIN_START)
+            .remove(KEY_CHAIN_RINGS)
+            .remove(KEY_CHAIN_STEPS)
+            .commit()
     }
+
+    var chainSteps: Int
+        get() = preferences.getInt(KEY_CHAIN_STEPS, 0)
+        set(value) {
+            preferences.edit().putInt(KEY_CHAIN_STEPS, value).commit()
+        }
+
+    var stepChallengeEnabled: Boolean
+        get() = preferences.getBoolean(KEY_STEP_ENABLED, true)
+        set(value) {
+            preferences.edit().putBoolean(KEY_STEP_ENABLED, value).commit()
+        }
+
+    var stepTarget: Int
+        get() = preferences.getInt(KEY_STEP_TARGET, DEFAULT_STEP_TARGET)
+        set(value) {
+            preferences.edit().putInt(KEY_STEP_TARGET, value).commit()
+        }
 
     fun shouldScheduleAnotherRing(): Boolean {
         if (!enabled) {
@@ -70,6 +93,11 @@ class AlarmSettings(context: Context) {
         private const val KEY_SESSION_ACTIVE = "session_active"
         private const val KEY_CHAIN_START = "chain_start_ms"
         private const val KEY_CHAIN_RINGS = "chain_rings"
+        private const val KEY_CHAIN_STEPS = "chain_steps"
+        private const val KEY_STEP_ENABLED = "step_challenge_enabled"
+        private const val KEY_STEP_TARGET = "step_target"
+        const val DEFAULT_STEP_TARGET = 100
+        val STEP_TARGET_OPTIONS = listOf(50, 100, 150, 200)
         private const val MAX_RINGS = 9
         private const val MAX_CHAIN_MS = 45 * 60 * 1000L
 
