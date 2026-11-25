@@ -6,8 +6,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.getValue
@@ -15,6 +15,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
 import androidx.wear.compose.material3.Button
@@ -33,7 +34,7 @@ class MainActivity : ComponentActivity() {
     private var enabled by mutableStateOf(false)
     private var hour by mutableStateOf(AlarmSettings.DEFAULT_HOUR)
     private var minute by mutableStateOf(AlarmSettings.DEFAULT_MINUTE)
-    private var message by mutableStateOf("Off.")
+    private var message by mutableStateOf("Alarm off")
     private var showTimePicker by mutableStateOf(false)
 
     private val notificationPermission = registerForActivityResult(
@@ -41,7 +42,7 @@ class MainActivity : ComponentActivity() {
     ) { granted ->
         PocLog.append(this, "notification permission granted=$granted")
         if (!granted) {
-            message = "Notifications denied. Stop will have no visible control."
+            message = "Notifications denied"
         }
     }
 
@@ -71,19 +72,27 @@ class MainActivity : ComponentActivity() {
                     ScalingLazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 28.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        item { Text("%02d:%02d".format(hour, minute), style = MaterialTheme.typography.displayMedium) }
-                        item { Text(message) }
                         item {
-                            Button(onClick = { showTimePicker = true }) {
-                                Text("Change time")
-                            }
+                            Text(
+                                formatTime12(hour, minute),
+                                style = MaterialTheme.typography.displayMedium,
+                                modifier = Modifier.clickable { showTimePicker = true },
+                            )
+                        }
+                        item {
+                            Text(
+                                message,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                            )
                         }
                         item {
                             Button(onClick = { toggle() }) {
-                                Text(if (enabled) "Turn off" else "Turn on")
+                                Text(if (enabled) "Cancel alarm" else "Set alarm")
                             }
                         }
                     }
@@ -103,23 +112,30 @@ class MainActivity : ComponentActivity() {
         settings.minute = minute
         val scheduled = scheduler.scheduleDaily()
         message = when {
-            !enabled -> "Off. Nothing is scheduled."
+            !enabled -> "Alarm off"
             scheduled -> describe()
-            else -> "Exact alarm was not scheduled."
+            else -> "Could not schedule alarm"
         }
         PocLog.append(this, "alarm saved enabled=$enabled time=%02d:%02d scheduled=$scheduled".format(hour, minute))
     }
 
     private fun describe(): String {
         if (!enabled) {
-            return "Off. Nothing is scheduled."
+            return "Alarm off"
         }
-        val trigger = AlarmSettings.nextTriggerMillis(hour, minute)
-        val label = Instant.ofEpochMilli(trigger).atZone(ZoneId.systemDefault()).format(NEXT)
-        return "Next $label"
+        val trigger = Instant.ofEpochMilli(AlarmSettings.nextTriggerMillis(hour, minute))
+            .atZone(ZoneId.systemDefault())
+        val label = trigger.format(NEXT_FORMAT)
+        return "Next: $label"
     }
 
     companion object {
-        private val NEXT: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE hh:mm a")
+        private val NEXT_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE hh:mm a")
+
+        fun formatTime12(hour: Int, minute: Int): String {
+            val h = if (hour == 0) 12 else if (hour > 12) hour - 12 else hour
+            val amPm = if (hour < 12) "AM" else "PM"
+            return "%d:%02d %s".format(h, minute, amPm)
+        }
     }
 }
