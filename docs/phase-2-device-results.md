@@ -2,9 +2,24 @@
 
 Date: 2026-11-25.
 
-The six physical cases were not run. `adb devices -l` listed no devices, and `adb mdns services` found no wireless-debugging advertisement. The Galaxy Watch 8 API level is therefore unknown. No alarm delivery, vibration, or screen-off accelerometer result exists yet.
+The watch is connected. It is a Samsung Galaxy Watch 8, model SM-L330 (`fresh8blue`), firmware `L330XXU2BZJ7`, Android 17, API 37. That is Wear OS 7. `adb devices` shows the same watch twice, once by IP and once by mDNS name. Pass `-s 192.168.1.7:46057` when a command says more than one device is attached. The port changes whenever wireless debugging restarts.
 
-This is a stop. The proof of concept is built and its unit tests pass, but the watch has not confirmed that `setAlarmClock()` or screen-off motion works under One UI Watch. Do not treat the emulator as that confirmation. No workaround was added.
+## First on-watch alarm
+
+Scheduled at 06:44:03Z for 120000 ms. The receiver ran at 06:46:03.504Z, about 40 ms after the target. The screen was off (`screen interactive=false`). One UI Watch did not block `setAlarmClock()`.
+
+What started:
+
+- The `specialUse` foreground service was accepted.
+- Vibration started.
+- The accelerometer is `LSM6DSV Accelerometer`, and it is not a wake-up sensor. The session took a partial wake lock for that reason.
+- The first motion sample arrived with the screen still off: `x=-0.14 y=1.53 z=9.96`.
+
+What did not happen:
+
+- `activity start requested` was logged, and `activity created` was not. The alarm screen did not open from the background. Stop still worked: the log shows `stop requested` about five seconds later, then the service was destroyed and the alarm was cancelled.
+
+The five-minute screen-off window, Bedtime mode, idle, and the automatic repeat have not been measured. The wearer stopped this run before the window ended. No workaround was added for the activity launch.
 
 ## What is ready on the Mac
 

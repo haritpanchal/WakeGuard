@@ -22,7 +22,8 @@ class AlarmActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setShowWhenLocked(true)
         setTurnScreenOn(true)
-        PocLog.append(this, "activity created")
+        val watching = AlarmSettings(this).sessionActive
+        PocLog.append(this, "activity created watching=$watching")
         val time = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))
         setContent {
             MaterialTheme {
@@ -34,9 +35,9 @@ class AlarmActivity : ComponentActivity() {
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(time)
-                    Text("Monitoring movement")
-                    Button(onClick = { stopAlarm() }) {
-                        Text("Stop")
+                    Text(if (watching) "Watching movement" else "This ring already finished")
+                    Button(onClick = { if (watching) stopAlarm() else finish() }) {
+                        Text(if (watching) "Stop" else "Close")
                     }
                 }
             }

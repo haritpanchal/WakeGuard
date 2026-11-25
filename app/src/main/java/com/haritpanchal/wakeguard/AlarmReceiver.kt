@@ -9,7 +9,10 @@ class AlarmReceiver : BroadcastReceiver() {
         when (intent?.action) {
             ACTION_STOP -> {
                 PocLog.append(context, "stop requested")
-                AlarmScheduler(context).cancel()
+                val scheduler = AlarmScheduler(context)
+                scheduler.cancel()
+                AlarmSettings(context).clearChain()
+                scheduler.scheduleDaily()
                 context.stopService(Intent(context, AlarmSessionService::class.java))
                 val manager = context.getSystemService(android.app.NotificationManager::class.java)
                 manager.cancel(PocNotifications.MONITORING_ID)

@@ -27,7 +27,10 @@ class AlarmSessionService : Service(), SensorEventListener {
     private var finished = false
     private var startedElapsed = 0L
 
+    private var ringing = false
+
     private val finishWindow = Runnable { finishWindow("timeout") }
+    private val endRing = Runnable { endRing() }
     private val silenceWatch = Runnable {
         if (sampleCount == 0) {
             acquirePartialWakeLock("no-samples-30s")
@@ -44,7 +47,10 @@ class AlarmSessionService : Service(), SensorEventListener {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val repeat = scheduler.nextIsRepeat()
-        PocLog.append(this, "session started repeat=$repeat")
+        val settings = AlarmSettings(this)
+        if (repeat) settings.noteRepeatRing() else settings.noteFirstRing()
+        settings.sessionActive = true
+        PocLog.append(this, "session started repeat=$repeat ring=${settings.chainRings}")
         try {
             startForeground(
                 PocNotifications.MONITORING_ID,
@@ -63,6 +69,7 @@ class AlarmSessionService : Service(), SensorEventListener {
         startMotion()
         startedElapsed = android.os.SystemClock.elapsedRealtime()
         lastMinuteLogElapsed = startedElapsed
+        handler.postDelayed(endRing, RING_MS)
         handler.postDelayed(finishWindow, WINDOW_MS)
         handler.postDelayed(silenceWatch, SILENCE_MS)
         return START_NOT_STICKY
@@ -73,6 +80,7 @@ class AlarmSessionService : Service(), SensorEventListener {
         sensors.stop()
         releaseWakeLock()
         vibrateCancel()
+        AlarmSettings(this).sessionActive = false
         PocLog.append(this, "service destroyed")
         super.onDestroy()
     }
@@ -105,6 +113,9 @@ class AlarmSessionService : Service(), SensorEventListener {
                     "bursts=${snapshot.validBurstCount} activeMs=${snapshot.totalActiveMs} " +
                     "awake=${snapshot.awake}",
             )
+        }
+        if (ringing) {
+            return
         }
         val decision = detector.add(
             MotionSample(
@@ -159,6 +170,7 @@ class AlarmSessionService : Service(), SensorEventListener {
         }
         finished = true
         handler.removeCallbacks(finishWindow)
+        handler.removeCallbacks(endRing)
         handler.removeCallbacks(silenceWatch)
         val snapshot = detector.snapshot()
         PocLog.append(
@@ -169,14 +181,18 @@ class AlarmSessionService : Service(), SensorEventListener {
         sensors.stop()
         vibrateCancel()
         releaseWakeLock()
-        if (snapshot.awake) {
-            PocLog.append(this, "no repeat after awake decision")
+        val settings = AlarmSettings(this)
+        if (snapshot.awake || !settings.shouldScheduleAnotherRing()) {
+            val why = if (snapshot.awake) "awake" else "chain cap"
+            PocLog.append(this, "no repeat after $why")
+            settings.clearChain()
+            scheduler.scheduleDaily()
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
             return
         }
-        val scheduled = scheduler.scheduleIn(REPEAT_DELAY_MS, repeat = true)
-        PocLog.append(this, "repeat scheduled=$scheduled")
+        val scheduled = scheduler.scheduleIn(NEXT_RING_DELAY_MS, repeat = true)
+        PocLog.append(this, "still asleep, next ring in ${NEXT_RING_DELAY_MS}ms scheduled=$scheduled")
         getSystemService(NotificationManager::class.java)
             .notify(PocNotifications.REPEAT_ID, PocNotifications.repeatScheduled(this))
         stopForeground(STOP_FOREGROUND_REMOVE)
@@ -212,7 +228,17 @@ class AlarmSessionService : Service(), SensorEventListener {
                 0,
             ),
         )
-        PocLog.append(this, "vibration started")
+        ringing = true
+        PocLog.append(this, "vibration started for ${RING_MS}ms")
+    }
+
+    private fun endRing() {
+        if (finished || !ringing) {
+            return
+        }
+        ringing = false
+        vibrateCancel()
+        PocLog.append(this, "vibration stopped, tracking continues")
     }
 
     private fun vibrateCancel() {
@@ -221,7 +247,8 @@ class AlarmSessionService : Service(), SensorEventListener {
 
     companion object {
         const val WINDOW_MS = 5 * 60 * 1000L
-        const val REPEAT_DELAY_MS = 2 * 60 * 1000L
+        const val RING_MS = 45 * 1000L
+        private const val NEXT_RING_DELAY_MS = 1_000L
         private const val SILENCE_MS = 30_000L
     }
 }

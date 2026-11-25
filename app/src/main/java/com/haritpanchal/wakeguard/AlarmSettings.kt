@@ -1,0 +1,84 @@
+package com.haritpanchal.wakeguard
+
+import android.content.Context
+import java.time.ZonedDateTime
+
+class AlarmSettings(context: Context) {
+    private val preferences = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
+    var enabled: Boolean
+        get() = preferences.getBoolean(KEY_ENABLED, false)
+        set(value) {
+            preferences.edit().putBoolean(KEY_ENABLED, value).commit()
+        }
+
+    var hour: Int
+        get() = preferences.getInt(KEY_HOUR, DEFAULT_HOUR)
+        set(value) {
+            preferences.edit().putInt(KEY_HOUR, value).commit()
+        }
+
+    var minute: Int
+        get() = preferences.getInt(KEY_MINUTE, DEFAULT_MINUTE)
+        set(value) {
+            preferences.edit().putInt(KEY_MINUTE, value).commit()
+        }
+
+    var sessionActive: Boolean
+        get() = preferences.getBoolean(KEY_SESSION_ACTIVE, false)
+        set(value) {
+            preferences.edit().putBoolean(KEY_SESSION_ACTIVE, value).commit()
+        }
+
+    val chainRings: Int
+        get() = preferences.getInt(KEY_CHAIN_RINGS, 0)
+
+    fun noteFirstRing() {
+        preferences.edit()
+            .putLong(KEY_CHAIN_START, System.currentTimeMillis())
+            .putInt(KEY_CHAIN_RINGS, 1)
+            .commit()
+    }
+
+    fun noteRepeatRing() {
+        preferences.edit().putInt(KEY_CHAIN_RINGS, chainRings + 1).commit()
+    }
+
+    fun clearChain() {
+        preferences.edit().remove(KEY_CHAIN_START).remove(KEY_CHAIN_RINGS).commit()
+    }
+
+    fun shouldScheduleAnotherRing(): Boolean {
+        if (!enabled) {
+            return false
+        }
+        val started = preferences.getLong(KEY_CHAIN_START, 0L)
+        if (started == 0L) {
+            return true
+        }
+        val elapsed = System.currentTimeMillis() - started
+        return chainRings < MAX_RINGS && elapsed < MAX_CHAIN_MS
+    }
+
+    companion object {
+        const val PREFS = "wakeguard-poc"
+        const val DEFAULT_HOUR = 7
+        const val DEFAULT_MINUTE = 0
+        private const val KEY_ENABLED = "enabled"
+        private const val KEY_HOUR = "hour"
+        private const val KEY_MINUTE = "minute"
+        private const val KEY_SESSION_ACTIVE = "session_active"
+        private const val KEY_CHAIN_START = "chain_start_ms"
+        private const val KEY_CHAIN_RINGS = "chain_rings"
+        private const val MAX_RINGS = 9
+        private const val MAX_CHAIN_MS = 45 * 60 * 1000L
+
+        fun nextTriggerMillis(hour: Int, minute: Int, now: ZonedDateTime = ZonedDateTime.now()): Long {
+            var next = now.withHour(hour).withMinute(minute).withSecond(0).withNano(0)
+            if (!next.isAfter(now)) {
+                next = next.plusDays(1)
+            }
+            return next.toInstant().toEpochMilli()
+        }
+    }
+}
