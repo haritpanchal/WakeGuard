@@ -108,6 +108,8 @@ Physical cases, each after force-stopping the app:
 
 Pass bar: the alarm fires within a few seconds in cases 1–3, vibration runs, at least one motion sample arrives with the screen off, Stop cancels the repeat, and the service is not running afterward.
 
+The 2026-11-25 attempt did not reach the watch. See [docs/phase-2-device-results.md](docs/phase-2-device-results.md).
+
 ## Known limitations
 
 - Exact delivery under One UI Watch Bedtime mode is unproven until the watch tests pass.
