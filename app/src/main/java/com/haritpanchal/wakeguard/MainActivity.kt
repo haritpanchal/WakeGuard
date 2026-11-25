@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.getValue
@@ -19,7 +20,10 @@ import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
 import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.Text
+import androidx.wear.compose.material3.TimePicker
+import androidx.wear.compose.material3.TimePickerType
 import java.time.Instant
+import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
@@ -30,6 +34,7 @@ class MainActivity : ComponentActivity() {
     private var hour by mutableStateOf(AlarmSettings.DEFAULT_HOUR)
     private var minute by mutableStateOf(AlarmSettings.DEFAULT_MINUTE)
     private var message by mutableStateOf("Off.")
+    private var showTimePicker by mutableStateOf(false)
 
     private val notificationPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -51,36 +56,36 @@ class MainActivity : ComponentActivity() {
         }
         setContent {
             MaterialTheme {
-                ScalingLazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 28.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    item { Text("%02d:%02d".format(hour, minute), style = MaterialTheme.typography.displayMedium) }
-                    item { Text(message) }
-                    item {
-                        Button(onClick = { toggle() }) {
-                            Text(if (enabled) "Turn off" else "Turn on")
+                if (showTimePicker) {
+                    TimePicker(
+                        initialTime = LocalTime.of(hour, minute),
+                        onTimePicked = { picked ->
+                            hour = picked.hour
+                            minute = picked.minute
+                            showTimePicker = false
+                            save()
+                        },
+                        timePickerType = TimePickerType.HoursMinutesAmPm12H,
+                    )
+                } else {
+                    ScalingLazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 28.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        item { Text("%02d:%02d".format(hour, minute), style = MaterialTheme.typography.displayMedium) }
+                        item { Text(message) }
+                        item {
+                            Button(onClick = { showTimePicker = true }) {
+                                Text("Change time")
+                            }
                         }
-                    }
-                    item {
-                        Button(onClick = { changeHour(-1) }) { Text("Hour earlier") }
-                    }
-                    item {
-                        Button(onClick = { changeHour(1) }) { Text("Hour later") }
-                    }
-                    item {
-                        Button(onClick = { changeMinute(-5) }) { Text("5 min earlier") }
-                    }
-                    item {
-                        Button(onClick = { changeMinute(5) }) { Text("5 min later") }
-                    }
-                    item {
-                        Button(onClick = { changeMinute(-1) }) { Text("1 min earlier") }
-                    }
-                    item {
-                        Button(onClick = { changeMinute(1) }) { Text("1 min later") }
+                        item {
+                            Button(onClick = { toggle() }) {
+                                Text(if (enabled) "Turn off" else "Turn on")
+                            }
+                        }
                     }
                 }
             }
@@ -89,19 +94,6 @@ class MainActivity : ComponentActivity() {
 
     private fun toggle() {
         enabled = !enabled
-        save()
-    }
-
-    private fun changeHour(delta: Int) {
-        hour = (hour + delta).mod(24)
-        save()
-    }
-
-    private fun changeMinute(delta: Int) {
-        val total = hour * 60 + minute + delta
-        val wrapped = total.mod(24 * 60)
-        hour = wrapped / 60
-        minute = wrapped % 60
         save()
     }
 
@@ -128,6 +120,6 @@ class MainActivity : ComponentActivity() {
     }
 
     companion object {
-        private val NEXT: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE HH:mm")
+        private val NEXT: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE hh:mm a")
     }
 }
