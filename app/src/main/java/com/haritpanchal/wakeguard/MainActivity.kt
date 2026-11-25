@@ -207,22 +207,20 @@ class MainActivity : ComponentActivity() {
                             // Status below time
                             item {
                                 Text(
-                                    if (enabled) ringsIn else "Tap time to set alarm",
+                                    if (enabled) ringsIn else "Tap time to enable alarm",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     textAlign = TextAlign.Center,
                                 )
                             }
-                            // Change time link
-                            if (enabled) {
-                                item {
-                                    Text(
-                                        "Change time",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.clickable { showTimePicker = true },
-                                    )
-                                }
+                            // Change time link (always visible)
+                            item {
+                                Text(
+                                    "Change time",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.clickable { showTimePicker = true },
+                                )
                             }
                             // Card-style rows (Samsung settings style)
                             item {
