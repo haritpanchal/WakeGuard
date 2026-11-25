@@ -56,7 +56,7 @@ class AlarmSessionService : Service(), SensorEventListener {
         stepChallengeEnabled = settings.stepChallengeEnabled
         stepTarget = settings.stepTarget
         stepCount = settings.chainSteps
-        PocLog.append(
+        AppLog.append(
             this,
             "session started repeat=$repeat ring=${settings.chainRings} " +
                 "carrySteps=$stepCount stepsEnabled=$stepChallengeEnabled target=$stepTarget",
@@ -64,13 +64,13 @@ class AlarmSessionService : Service(), SensorEventListener {
 
         try {
             startForeground(
-                PocNotifications.MONITORING_ID,
-                PocNotifications.monitoring(this, stepCount, fullScreen = true),
+                Notifications.MONITORING_ID,
+                Notifications.monitoring(this, stepCount, fullScreen = true),
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
             )
-            PocLog.append(this, "foreground service started type=specialUse")
+            AppLog.append(this, "foreground service started type=specialUse")
         } catch (security: SecurityException) {
-            PocLog.append(this, "foreground service rejected ${security.message}")
+            AppLog.append(this, "foreground service rejected ${security.message}")
             stopSelf()
             return START_NOT_STICKY
         }
@@ -98,7 +98,7 @@ class AlarmSessionService : Service(), SensorEventListener {
         if (settings.chainRings > 0) {
             settings.chainSteps = stepCount
         }
-        PocLog.append(this, "service destroyed steps=$stepCount")
+        AppLog.append(this, "service destroyed steps=$stepCount")
         super.onDestroy()
     }
 
@@ -115,35 +115,35 @@ class AlarmSessionService : Service(), SensorEventListener {
         stepCount += 1
         val settings = AlarmSettings(this)
         settings.chainSteps = stepCount
-        PocLog.append(this, "step total=$stepCount/$stepTarget")
+        AppLog.append(this, "step total=$stepCount/$stepTarget")
 
         try {
             getSystemService(NotificationManager::class.java)
-                .notify(PocNotifications.MONITORING_ID, PocNotifications.monitoring(this, stepCount))
+                .notify(Notifications.MONITORING_ID, Notifications.monitoring(this, stepCount))
         } catch (_: Exception) {}
 
         if (stepCount >= stepTarget) {
-            PocLog.append(this, "step target reached! steps=$stepCount")
+            AppLog.append(this, "step target reached! steps=$stepCount")
             finishWindow("steps_complete")
         }
     }
 
     private fun muteTone() {
         stopAlarmTone()
-        PocLog.append(this, "tone muted by user, vibration continues")
+        AppLog.append(this, "tone muted by user, vibration continues")
     }
 
     private fun startStepDetector() {
         val sensorManager = getSystemService(SensorManager::class.java)
         val stepDetector = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_DETECTOR)
         if (stepDetector == null) {
-            PocLog.append(this, "step detector sensor unavailable")
+            AppLog.append(this, "step detector sensor unavailable")
             return
         }
         stepSensorRegistered = sensorManager.registerListener(
             this, stepDetector, SensorManager.SENSOR_DELAY_FASTEST, handler,
         )
-        PocLog.append(
+        AppLog.append(
             this,
             "step detector registered=$stepSensorRegistered name=${stepDetector.name} wakeUp=${stepDetector.isWakeUpSensor}",
         )
@@ -161,7 +161,7 @@ class AlarmSessionService : Service(), SensorEventListener {
         finished = true
         handler.removeCallbacks(finishWindow)
         handler.removeCallbacks(endRing)
-        PocLog.append(this, "window end reason=$reason steps=$stepCount")
+        AppLog.append(this, "window end reason=$reason steps=$stepCount")
 
         stopStepDetector()
         vibrateCancel()
@@ -176,7 +176,7 @@ class AlarmSessionService : Service(), SensorEventListener {
                 !stepChallengeEnabled -> "no_step_challenge"
                 else -> "chain cap"
             }
-            PocLog.append(this, "no repeat after $why steps=$stepCount")
+            AppLog.append(this, "no repeat after $why steps=$stepCount")
             settings.clearChain()
             scheduler.scheduleDaily()
             stopForeground(STOP_FOREGROUND_REMOVE)
@@ -186,9 +186,9 @@ class AlarmSessionService : Service(), SensorEventListener {
 
         settings.chainSteps = stepCount
         val scheduled = scheduler.scheduleIn(NEXT_RING_DELAY_MS, repeat = true)
-        PocLog.append(this, "steps incomplete, next ring in ${NEXT_RING_DELAY_MS}ms scheduled=$scheduled steps=$stepCount")
+        AppLog.append(this, "steps incomplete, next ring in ${NEXT_RING_DELAY_MS}ms scheduled=$scheduled steps=$stepCount")
         getSystemService(NotificationManager::class.java)
-            .notify(PocNotifications.REPEAT_ID, PocNotifications.repeatScheduled(this))
+            .notify(Notifications.REPEAT_ID, Notifications.repeatScheduled(this))
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
@@ -200,7 +200,7 @@ class AlarmSessionService : Service(), SensorEventListener {
         lock.setReferenceCounted(false)
         lock.acquire(WINDOW_MS + 30_000L)
         wakeLock = lock
-        PocLog.append(this, "partial wake lock acquired")
+        AppLog.append(this, "partial wake lock acquired")
     }
 
     private fun releaseWakeLock() {
@@ -221,7 +221,7 @@ class AlarmSessionService : Service(), SensorEventListener {
         )
         startAlarmTone()
         ringing = true
-        PocLog.append(this, "vibration + tone started for ${RING_MS}ms")
+        AppLog.append(this, "vibration + tone started for ${RING_MS}ms")
     }
 
     @Suppress("DEPRECATION")
@@ -233,7 +233,7 @@ class AlarmSessionService : Service(), SensorEventListener {
         )
         lock.acquire(RING_MS + 5_000L)
         screenLock = lock
-        PocLog.append(this, "screen wake lock acquired")
+        AppLog.append(this, "screen wake lock acquired")
     }
 
     private fun releaseScreenLock() {
@@ -260,9 +260,9 @@ class AlarmSessionService : Service(), SensorEventListener {
             player.prepare()
             player.start()
             alarmPlayer = player
-            PocLog.append(this, "alarm tone playing uri=$uri")
+            AppLog.append(this, "alarm tone playing uri=$uri")
         } catch (e: Exception) {
-            PocLog.append(this, "alarm tone failed ${e.javaClass.simpleName}: ${e.message}")
+            AppLog.append(this, "alarm tone failed ${e.javaClass.simpleName}: ${e.message}")
         }
     }
 
@@ -283,9 +283,9 @@ class AlarmSessionService : Service(), SensorEventListener {
         stopAlarmTone()
         releaseScreenLock()
         if (stepChallengeEnabled) {
-            PocLog.append(this, "ring stopped, waiting for steps ($stepCount/$stepTarget)")
+            AppLog.append(this, "ring stopped, waiting for steps ($stepCount/$stepTarget)")
         } else {
-            PocLog.append(this, "ring stopped, no step challenge")
+            AppLog.append(this, "ring stopped, no step challenge")
             finishWindow("ring_ended")
         }
     }

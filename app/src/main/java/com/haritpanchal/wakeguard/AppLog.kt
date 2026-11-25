@@ -4,7 +4,7 @@ import android.content.Context
 import android.util.Log
 import java.time.Instant
 
-object PocLog {
+object AppLog {
     private const val FILE_NAME = "wakeguard-poc.log"
 
     fun append(context: Context, message: String) {

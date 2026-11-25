@@ -56,7 +56,7 @@ class MainActivity : ComponentActivity() {
     private val notificationPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
-        PocLog.append(this, "notification permission granted=$granted")
+        AppLog.append(this, "notification permission granted=$granted")
         if (!granted) {
             ringsIn = "Notifications denied"
         }
@@ -65,7 +65,7 @@ class MainActivity : ComponentActivity() {
     private val activityRecognitionPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
-        PocLog.append(this, "activity recognition permission granted=$granted")
+        AppLog.append(this, "activity recognition permission granted=$granted")
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -145,7 +145,7 @@ class MainActivity : ComponentActivity() {
                                                 stepTarget = target
                                                 settings.stepTarget = target
                                             }
-                                            PocLog.append(
+                                            AppLog.append(
                                                 this@MainActivity,
                                                 "steps set enabled=$stepChallengeEnabled target=$stepTarget",
                                             )
@@ -295,7 +295,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun emergencyStop() {
-        PocLog.append(this, "emergency stop pressed")
+        AppLog.append(this, "emergency stop pressed")
         sendBroadcast(Intent(this, AlarmReceiver::class.java).setAction(AlarmReceiver.ACTION_STOP))
         stopService(Intent(this, AlarmSessionService::class.java))
         scheduler.cancel()
@@ -303,13 +303,13 @@ class MainActivity : ComponentActivity() {
         s.clearChain()
         s.sessionActive = false
         val nm = getSystemService(android.app.NotificationManager::class.java)
-        nm.cancel(PocNotifications.MONITORING_ID)
-        nm.cancel(PocNotifications.REPEAT_ID)
+        nm.cancel(Notifications.MONITORING_ID)
+        nm.cancel(Notifications.REPEAT_ID)
         if (enabled) {
             scheduler.scheduleDaily()
         }
         updateStatus()
-        PocLog.append(this, "emergency stop complete, alarm enabled=$enabled")
+        AppLog.append(this, "emergency stop complete, alarm enabled=$enabled")
     }
 
     private fun save() {
@@ -323,7 +323,7 @@ class MainActivity : ComponentActivity() {
         } else if (!scheduled) {
             ringsIn = "Could not schedule alarm"
         }
-        PocLog.append(this, "alarm saved enabled=$enabled time=%02d:%02d scheduled=$scheduled".format(hour, minute))
+        AppLog.append(this, "alarm saved enabled=$enabled time=%02d:%02d scheduled=$scheduled".format(hour, minute))
     }
 
     private fun updateStatus() {

@@ -8,18 +8,18 @@ class AlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
         when (intent?.action) {
             ACTION_STOP -> {
-                PocLog.append(context, "stop requested")
+                AppLog.append(context, "stop requested")
                 val scheduler = AlarmScheduler(context)
                 scheduler.cancel()
                 AlarmSettings(context).clearChain()
                 scheduler.scheduleDaily()
                 context.stopService(Intent(context, AlarmSessionService::class.java))
                 val manager = context.getSystemService(android.app.NotificationManager::class.java)
-                manager.cancel(PocNotifications.MONITORING_ID)
-                manager.cancel(PocNotifications.REPEAT_ID)
+                manager.cancel(Notifications.MONITORING_ID)
+                manager.cancel(Notifications.REPEAT_ID)
             }
             else -> {
-                PocLog.append(context, "alarm delivered to receiver")
+                AppLog.append(context, "alarm delivered to receiver")
                 val service = Intent(context, AlarmSessionService::class.java)
                 context.startForegroundService(service)
             }

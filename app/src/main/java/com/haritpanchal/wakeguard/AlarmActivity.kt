@@ -62,9 +62,9 @@ class AlarmActivity : ComponentActivity(), SensorEventListener {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         val settings = AlarmSettings(this)
         val watching = settings.sessionActive
-        PocLog.append(this, "activity created watching=$watching")
+        AppLog.append(this, "activity created watching=$watching")
         if (!watching) {
-            PocLog.append(this, "session not active, closing immediately")
+            AppLog.append(this, "session not active, closing immediately")
             finish()
             return
         }

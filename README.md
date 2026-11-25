@@ -1,50 +1,58 @@
 # WakeGuard
 
-WakeGuard is a personal Wear OS morning alarm for a Samsung Galaxy Watch 8. It rings on the watch, then keeps ringing until a conservative motion heuristic says the wearer is likely awake, or until the wearer stops it. It is not a general alarm clock, timer, or reminder app, and it does not read or change Samsung Clock alarms.
+A standalone Wear OS alarm app for Samsung Galaxy Watch that actually makes you get up. Set a wake-up time, and when it rings, you have to **walk** to dismiss it. No snooze button, no cheating.
 
-This repository starts with a feasibility note and a small on-watch proof of concept. The proof of concept exists to find out whether an exact alarm and a few minutes of screen-off accelerometer data actually work under One UI Watch. It is not the finished app.
+<p align="center">
+  <img src="assets/screenshot-main.png" width="200" alt="Main screen" />
+  &nbsp;&nbsp;
+  <img src="assets/screenshot-steps.png" width="200" alt="Step picker" />
+</p>
 
-## Features in the proof of concept
+## How It Works
 
-- Schedule one exact alarm with `AlarmManager.setAlarmClock()`.
-- Fire that alarm after the app process has been force-stopped.
-- Vibrate and post a notification with a Stop action.
-- Sample the accelerometer for five minutes and write a local log.
-- Schedule one repeat, then exit. Stop cancels that repeat.
-- Unit tests for the wakefulness heuristic.
+1. **Set your alarm** — tap the time to toggle on/off, tap "Change time" for a 12-hour scroll picker.
+2. **Choose your step challenge** — pick 50, 100, 150, or 200 steps, or turn it off.
+3. **Go to sleep** — the app doesn't run overnight. The alarm is held by the system.
+4. **Wake up** — the watch vibrates and plays an alarm tone for 45 seconds.
+5. **Walk to dismiss** — if you don't hit your step target within 5 minutes, it rings again. And again. Up to 9 times or 45 minutes.
+6. **Emergency stop** — for when you really need to kill it.
 
-The finished app, including a daily wake-up time, snooze, persistence, and reboot recovery, is later work. It is not in this tree yet.
+## Features
 
-## Supported device
+- **Step challenge** — configurable step target (50–200) to dismiss the alarm
+- **Repeat rings** — alarm keeps coming back every 5 minutes until you walk enough
+- **Motion detection** — accelerometer-based wakefulness heuristic as a fallback
+- **Alarm tone + vibration** — both fire together for 45 seconds
+- **Screen wake** — watch screen turns on when the alarm fires
+- **Mute button** — silence the tone while still tracking steps
+- **Boot recovery** — alarm survives watch restarts
+- **No phone needed** — fully standalone on the watch
 
-- Samsung Galaxy Watch 8.
-- Wear OS 6 (Android 16, API 36) or Wear OS 7 (Android 17, API 37).
-- `minSdk` 34, `targetSdk` 36. `compileSdk` is 37 because current Wear Compose requires it.
-- No phone companion, account, or network service.
+## Supported Devices
 
-A Wear OS emulator can build and show the test screen. It does not reproduce Samsung background limits. Alarm delivery and screen-off motion are judged on the physical watch.
+- Samsung Galaxy Watch 8 (tested)
+- Wear OS 6+ (Android 16, API 36) or Wear OS 7 (Android 17, API 37)
+- Should work on other Wear OS watches, but only tested on Galaxy Watch 8
 
-## Development setup
+## Build & Install
 
-- macOS on Apple Silicon.
-- JDK 17 (`brew install openjdk@17`).
-- Android Studio current stable.
-- Android SDK with platforms 36 and 37, platform-tools, build-tools, the emulator, and Wear OS arm64 system images for those platforms.
+### Prerequisites
 
-`local.properties` points at the SDK on this machine and is not committed.
+- Android Studio (current stable)
+- Android SDK with platforms 36 and 37
+- JDK 17+
 
-## Build
+### Build
 
 ```bash
-export JAVA_HOME="$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home"
-./gradlew :app:assembleDebug :app:testDebugUnitTest
+./gradlew :app:assembleDebug
 ```
 
-The debug APK is `app/build/outputs/apk/debug/app-debug.apk`.
+The APK is at `app/build/outputs/apk/debug/app-debug.apk`.
 
-## Install on the watch
+### Install on Watch
 
-Enable Developer options and Wireless debugging on the watch, then:
+Enable **Developer options** and **Wireless debugging** on the watch:
 
 ```bash
 adb pair <watch-ip>:<pair-port>
@@ -52,79 +60,59 @@ adb connect <watch-ip>:<debug-port>
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-After a test run, pull the log:
+### Run Tests
 
 ```bash
-adb exec-out run-as com.haritpanchal.wakeguard cat files/wakeguard-poc.log
+./gradlew :app:testDebugUnitTest
 ```
 
 ## Permissions
 
 | Permission | Why |
 | --- | --- |
-| `USE_EXACT_ALARM` | Schedule the alarm while the process is not running. Granted at install for an alarm clock. |
-| `POST_NOTIFICATIONS` | Show the alarm notification and the Stop action. |
-| `VIBRATE` | Alarm haptics. |
-| `FOREGROUND_SERVICE` and `FOREGROUND_SERVICE_SPECIAL_USE` | Keep the process alive only during the five-minute monitoring window. |
-| `WAKE_LOCK` | Partial wake lock only if the wake-up accelerometer is missing or goes silent with the screen off. |
-| `RECEIVE_BOOT_COMPLETED` | Declared for the later reboot path. The proof of concept does not register a boot receiver. |
+| `USE_EXACT_ALARM` | Schedule alarm while the app isn't running |
+| `POST_NOTIFICATIONS` | Show alarm notification with actions |
+| `VIBRATE` | Alarm haptics |
+| `FOREGROUND_SERVICE` | Keep the alarm session alive during monitoring |
+| `WAKE_LOCK` | Wake the screen when the alarm fires |
+| `RECEIVE_BOOT_COMPLETED` | Reschedule alarm after watch restart |
+| `ACTIVITY_RECOGNITION` | Count steps for the walk-to-dismiss challenge |
+| `USE_FULL_SCREEN_INTENT` | Show the alarm screen over the lock screen |
 
-Not requested: body sensors, Health Connect, activity recognition, overlay, network, or a battery-optimization exemption.
+## How the Wakefulness Heuristic Works
 
-On the watch, also allow notifications for WakeGuard. In Galaxy Wearable, open Watch settings, Apps, WakeGuard, and turn on Allow background activity. Test Bedtime mode and Theater mode separately. Those modes can suppress third-party vibrations.
+The accelerometer detects movement after the vibration stops. A sample is "active" when linear acceleration exceeds 0.8 m/s² or the gravity vector turns faster than 30°/s. Quick twitches under 0.6s are ignored.
 
-## Background execution
+You're considered **awake** when:
+- You press Stop, or
+- 3+ movement bursts span at least 40 seconds with 12+ seconds of activity, or
+- One continuous burst lasts 25+ seconds
 
-The alarm is held by the system. The app does not stay open overnight and does not listen to sensors until the alarm fires. Wear OS does not support full-screen intents, and Android may block opening an activity from the alarm receiver. Vibration plus the notification Stop action is the path that has to work. Whether the alarm screen opens by itself is recorded in the log.
+Rolling over once won't trick it. Lying still while awake won't dismiss it. That's the point.
 
-## Wakefulness heuristic
+## Architecture
 
-A still wrist already measures about 9.8 m/s² of gravity, so magnitude alone misses a rollover. The detector high-passes gravity. A sample is active when linear acceleration exceeds 0.8 m/s² or the gravity vector turns faster than 30 deg/s. Twitches shorter than 0.6 s are ignored. Bursts separated by less than 1.5 s merge.
-
-The detector calls the wearer awake only when:
-
-- Stop is pressed, or
-- at least three valid bursts span at least 40 seconds and total at least 12 seconds of activity, or
-- one burst stays active for at least 25 seconds.
-
-One short burst, such as turning over, is not enough. Silence is not enough. This is a heuristic. Restless sleep can look awake, and lying still while awake will not. The proof of concept logs the decision. It does not claim to know that the wearer is awake.
-
-## Testing
-
-Unit tests cover silence, a twitch, one rollover, three separated bursts, one sustained burst, and Stop:
-
-```bash
-./gradlew :app:testDebugUnitTest
+```
+AlarmScheduler          → setExactAndAllowWhileIdle
+AlarmReceiver           → starts AlarmSessionService
+AlarmSessionService     → vibrate + tone, step detection, repeat scheduling
+AlarmActivity           → shows step progress, mute/stop buttons
+AlarmSettings           → SharedPreferences wrapper
+Notifications           → alarm + progress notification channels
+BootReceiver            → reschedules on reboot/timezone change
+WakefulnessDetector     → motion heuristic (unit tested)
+MotionSensorManager     → accelerometer sampling
 ```
 
-Physical cases, each after force-stopping the app:
+## Contributing
 
-1. Screen off, app not open.
-2. Watch idle for 10 minutes beforehand.
-3. Bedtime mode on, then off.
-4. Screen off for the whole five-minute sensor window.
-5. Stop from the notification.
-6. One repeat fires without reopening the app.
+Contributions are welcome! This is a personal project, but if you find it useful:
 
-Pass bar: the alarm fires within a few seconds in cases 1–3, vibration runs, at least one motion sample arrives with the screen off, Stop cancels the repeat, and the service is not running afterward.
+1. Fork the repo
+2. Create a feature branch
+3. Test on a real watch (emulators don't reproduce Wear OS background limits)
+4. Open a PR
 
-The 2026-11-25 attempt did not reach the watch. See [docs/phase-2-device-results.md](docs/phase-2-device-results.md).
+## License
 
-## Known limitations
-
-- Exact delivery under One UI Watch Bedtime mode is unproven until the watch tests pass.
-- The alarm activity may not open from the background. Stop on the notification is the guaranteed control in this phase.
-- Screen-off accelerometer delivery depends on a wake-up sensor or a short partial wake lock. If neither delivers samples, motion detection is not viable and work stops for a decision.
-- Reboot recovery, time-zone changes, snooze, and a daily schedule are not implemented yet.
-- Motion samples are not stored. The log keeps counters and a few diagnostic lines.
-
-See [docs/phase-1-feasibility.md](docs/phase-1-feasibility.md) for the investigation that led to this shape.
-
-## Roadmap
-
-1. Feasibility note and this proof of concept.
-2. Tune the heuristic on the watch and record battery impact.
-3. Daily alarm configuration, alarm screen, snooze, persistence, and cancellation.
-4. Reboot, clock changes, and duplicate-alarm handling.
-5. Wear OS UI polish.
-6. Sideload distribution only, and only with explicit approval. No public release.
+[MIT](LICENSE) — do whatever you want with it.

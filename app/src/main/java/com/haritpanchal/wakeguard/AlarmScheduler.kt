@@ -25,7 +25,7 @@ class AlarmScheduler(private val context: Context) {
     private fun arm(triggerAt: Long, repeat: Boolean, delayMs: Long): Boolean {
         val alarmManager = context.getSystemService(AlarmManager::class.java)
         if (!alarmManager.canScheduleExactAlarms()) {
-            PocLog.append(context, "exact alarm permission missing")
+            AppLog.append(context, "exact alarm permission missing")
             return false
         }
         val requestCode = preferences.getInt(KEY_REQUEST, REQUEST_FIRE_LEGACY) + 1
@@ -39,7 +39,7 @@ class AlarmScheduler(private val context: Context) {
             triggerAt,
             firePendingIntent(requestCode),
         )
-        PocLog.append(
+        AppLog.append(
             context,
             "scheduled api=setExactAndAllowWhileIdle request=$requestCode " +
                 "triggerAt=$triggerAt delayMs=$delayMs repeat=$repeat",
@@ -51,7 +51,7 @@ class AlarmScheduler(private val context: Context) {
         val alarmManager = context.getSystemService(AlarmManager::class.java)
         cancelArmed(alarmManager)
         preferences.edit().putBoolean(KEY_NEXT_REPEAT, false).apply()
-        PocLog.append(context, "alarm cancelled")
+        AppLog.append(context, "alarm cancelled")
     }
 
     fun nextIsRepeat(): Boolean = preferences.getBoolean(KEY_NEXT_REPEAT, false)

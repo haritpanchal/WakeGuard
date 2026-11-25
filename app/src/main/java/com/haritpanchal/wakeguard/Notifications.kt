@@ -8,7 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.drawable.Icon
 
-object PocNotifications {
+object Notifications {
     const val CHANNEL_ID = "wakeguard-alarm"
     const val CHANNEL_UPDATE_ID = "wakeguard-progress"
     const val MONITORING_ID = 1001
