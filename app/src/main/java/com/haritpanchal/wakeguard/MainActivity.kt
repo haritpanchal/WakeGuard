@@ -50,8 +50,10 @@ class MainActivity : ComponentActivity() {
     private var ringsIn by mutableStateOf("Alarm off")
     private var showTimePicker by mutableStateOf(false)
     private var showStepPicker by mutableStateOf(false)
+    private var showVibrationPicker by mutableStateOf(false)
     private var stepChallengeEnabled by mutableStateOf(true)
     private var stepTarget by mutableIntStateOf(AlarmSettings.DEFAULT_STEP_TARGET)
+    private var vibrationIntensity by mutableStateOf(VibrationIntensity.NORMAL)
 
     private val notificationPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -75,6 +77,7 @@ class MainActivity : ComponentActivity() {
         minute = settings.minute
         stepChallengeEnabled = settings.stepChallengeEnabled
         stepTarget = settings.stepTarget
+        vibrationIntensity = settings.vibrationIntensity
         updateStatus()
         if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -96,6 +99,68 @@ class MainActivity : ComponentActivity() {
                             },
                             timePickerType = TimePickerType.HoursMinutesAmPm12H,
                         )
+                    }
+                    showVibrationPicker -> {
+                        val options = VibrationIntensity.entries
+                        ScalingLazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 32.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            item {
+                                Text(
+                                    "\uD83D\uDCF3 Vibration",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.padding(bottom = 8.dp),
+                                )
+                            }
+                            items(options.size) { index ->
+                                val option = options[index]
+                                val selected = option == vibrationIntensity
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(
+                                            if (selected)
+                                                MaterialTheme.colorScheme.primaryContainer
+                                            else
+                                                MaterialTheme.colorScheme.surfaceContainer,
+                                            RoundedCornerShape(16.dp),
+                                        )
+                                        .clickable {
+                                            vibrationIntensity = option
+                                            settings.vibrationIntensity = option
+                                            AppLog.append(
+                                                this@MainActivity,
+                                                "vibration set to ${option.key}",
+                                            )
+                                            showVibrationPicker = false
+                                        }
+                                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        option.label,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = if (selected)
+                                            MaterialTheme.colorScheme.onPrimaryContainer
+                                        else
+                                            MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                    if (selected) {
+                                        Text(
+                                            "\u2713",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                     showStepPicker -> {
                         val options = listOf("OFF") +
@@ -223,6 +288,37 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                             // Card-style rows (Samsung settings style)
+                            item {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(
+                                            MaterialTheme.colorScheme.surfaceContainer,
+                                            RoundedCornerShape(16.dp),
+                                        )
+                                        .clickable { showVibrationPicker = true }
+                                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            "Vibration",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                        )
+                                        Text(
+                                            "Vibration intensity",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                    Text(
+                                        vibrationIntensity.label,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.primary,
+                                    )
+                                }
+                            }
                             item {
                                 Row(
                                     modifier = Modifier

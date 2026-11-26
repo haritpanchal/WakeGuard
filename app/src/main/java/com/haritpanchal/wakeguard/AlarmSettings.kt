@@ -3,6 +3,17 @@ package com.haritpanchal.wakeguard
 import android.content.Context
 import java.time.ZonedDateTime
 
+enum class VibrationIntensity(val key: String, val label: String) {
+    GENTLE("gentle", "Gentle"),
+    NORMAL("normal", "Normal"),
+    AGGRESSIVE("aggressive", "Aggressive");
+
+    companion object {
+        fun fromKey(key: String): VibrationIntensity =
+            entries.firstOrNull { it.key == key } ?: NORMAL
+    }
+}
+
 class AlarmSettings(context: Context) {
     private val preferences = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
@@ -71,6 +82,15 @@ class AlarmSettings(context: Context) {
             preferences.edit().putInt(KEY_STEP_TARGET, value).commit()
         }
 
+    var vibrationIntensity: VibrationIntensity
+        get() = VibrationIntensity.fromKey(
+            preferences.getString(KEY_VIBRATION_INTENSITY, VibrationIntensity.NORMAL.key)
+                ?: VibrationIntensity.NORMAL.key
+        )
+        set(value) {
+            preferences.edit().putString(KEY_VIBRATION_INTENSITY, value.key).commit()
+        }
+
     fun shouldScheduleAnotherRing(): Boolean {
         if (!enabled) {
             return false
@@ -96,6 +116,7 @@ class AlarmSettings(context: Context) {
         private const val KEY_CHAIN_STEPS = "chain_steps"
         private const val KEY_STEP_ENABLED = "step_challenge_enabled"
         private const val KEY_STEP_TARGET = "step_target"
+        private const val KEY_VIBRATION_INTENSITY = "vibration_intensity"
         const val DEFAULT_STEP_TARGET = 100
         val STEP_TARGET_OPTIONS = listOf(50, 100, 150, 200)
         private const val MAX_RINGS = 9
