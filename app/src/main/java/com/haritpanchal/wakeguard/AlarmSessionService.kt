@@ -30,6 +30,7 @@ class AlarmSessionService : Service(), SensorEventListener {
     private var stepTarget = AlarmSettings.DEFAULT_STEP_TARGET
     private var stepChallengeEnabled = true
     private var stepSensorRegistered = false
+    private var vibrationIntensity = VibrationIntensity.NORMAL
 
     private val endRing = Runnable { endRing() }
     private val finishWindow = Runnable { finishWindow("timeout") }
@@ -56,10 +57,12 @@ class AlarmSessionService : Service(), SensorEventListener {
         stepChallengeEnabled = settings.stepChallengeEnabled
         stepTarget = settings.stepTarget
         stepCount = settings.chainSteps
+        vibrationIntensity = settings.vibrationIntensity
         AppLog.append(
             this,
             "session started repeat=$repeat ring=${settings.chainRings} " +
-                "carrySteps=$stepCount stepsEnabled=$stepChallengeEnabled target=$stepTarget",
+                "carrySteps=$stepCount stepsEnabled=$stepChallengeEnabled target=$stepTarget " +
+                "vibration=${vibrationIntensity.key}",
         )
 
         try {
@@ -213,15 +216,32 @@ class AlarmSessionService : Service(), SensorEventListener {
     private fun vibrate() {
         wakeScreen()
         val vibrator = getSystemService(android.os.VibratorManager::class.java).defaultVibrator
-        vibrator.vibrate(
-            android.os.VibrationEffect.createWaveform(
+
+        val (pattern, amplitudes) = when (vibrationIntensity) {
+            VibrationIntensity.GENTLE -> Pair(
+                longArrayOf(0, 200, 500, 200, 500, 300),
+                intArrayOf(0, 80, 0, 80, 0, 100),
+            )
+            VibrationIntensity.NORMAL -> Pair(
                 longArrayOf(0, 500, 250, 500, 250, 900),
-                0,
-            ),
-        )
+                intArrayOf(0, 180, 0, 180, 0, 255),
+            )
+            VibrationIntensity.AGGRESSIVE -> Pair(
+                longArrayOf(0, 800, 100, 800, 100, 1200),
+                intArrayOf(0, 255, 0, 255, 0, 255),
+            )
+        }
+
+        val effect = if (vibrator.hasAmplitudeControl()) {
+            android.os.VibrationEffect.createWaveform(pattern, amplitudes, 0)
+        } else {
+            android.os.VibrationEffect.createWaveform(pattern, 0)
+        }
+        vibrator.vibrate(effect)
+
         startAlarmTone()
         ringing = true
-        AppLog.append(this, "vibration + tone started for ${RING_MS}ms")
+        AppLog.append(this, "vibration(${vibrationIntensity.key}) + tone started for ${RING_MS}ms")
     }
 
     @Suppress("DEPRECATION")
